@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>星闪点阵开发板 · 在线仿真台</title>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Sans+Mono:wght@400;500;700&display=swap">
+<style>
+/* ===================== 设计令牌 ===================== */
+:root{
+  --bench:#121417;
+  --pcb:#14483c;
+  --pcb-deep:#0e352c;
+  --silk:#e8e4d8;
+  --silk-dim:rgba(232,228,216,.55);
+  --gold:#c9a44c;
+  --amber:#ffb020;
+  --cyan:#54cdd8;
+  --red:#e05742;
+  --ink:#e6e4dc;
+  --muted:#8d9599;
+  --card:#1a1d21;
+  --card-line:#282c31;
+  --sans:'Noto Sans SC',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  --mono:'Noto Sans Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  min-height:100vh;
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.6;
+  background:
+    radial-gradient(1100px 520px at 18% -10%, #1c2126 0%, rgba(28,33,38,0) 62%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 30px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0 1px, transparent 1px 30px),
+    var(--bench);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ===================== 通用排版件 ===================== */
+.mono{font-family:var(--mono);font-size:11.5px;letter-spacing:.01em}
+.tag-label{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);
+}
+h2{
+  margin:0;font-size:12.5px;font-weight:500;letter-spacing:.08em;color:#dfe2e2;
+}
+
+/* ===================== 台面骨架 ===================== */
+.bench{max-width:1320px;margin:0 auto;padding:26px 24px 34px}
+
+.masthead{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  padding-bottom:16px;margin-bottom:20px;
+  border-bottom:1px dashed rgba(232,228,216,.16);
+}
+.mast-left{display:flex;flex-direction:column;gap:6px}
+.mast-left .tag-label{color:#7e878b}
+h1{
+  margin:0;font-size:25px;font-weight:500;letter-spacing:.04em;line-height:1.2;
+}
+h1 .thin{color:var(--silk-dim);font-weight:300}
+.mast-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+
+.pill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 12px;border:1px solid #2b3036;border-radius:999px;
+  background:#171a1e;font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:#aeb5b8;
+}
+.pill i{
+  width:7px;height:7px;border-radius:50%;background:#3a3f44;box-shadow:none;
+  transition:background .2s, box-shadow .2s;
+}
+.pill.is-linked i{background:var(--cyan);box-shadow:0 0 10px rgba(84,205,216,.7)}
+.pill.is-scanning i{background:var(--amber);animation:blink 1.1s steps(2,end) infinite}
+
+/* ===================== 主区 ===================== */
+.main{
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) minmax(340px,1fr);
+  gap:22px;
+  align-items:start;
+}
+
+/* ===================== 板卡 ===================== */
+.board{
+  position:relative;
+  border-radius:14px;
+  padding:22px 22px 20px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 2px, transparent 2px 5px),
+    radial-gradient(120% 90% at 50% 0%, #1a5a4a 0%, var(--pcb) 52%, var(--pcb-deep) 100%);
+  box-shadow:0 30px 60px -26px rgba(0,0,0,.85), inset 0 0 0 1px rgba(232,228,216,.14);
+}
+.screw{
+  position:absolute;width:13px;height:13px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #d8cfa8, #8d7d4c 55%, #5f5330 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.5);
+}
+.screw::after{
+  content:"";position:absolute;inset:0;margin:auto;width:7px;height:1.5px;
+  background:#3a3324;border-radius:1px;transform:rotate(35deg);
+}
+.screw.tl{top:10px;left:10px}
+.screw.tr{top:10px;right:10px}
+.screw.bl{bottom:10px;left:10px}
+.screw.br{bottom:10px;right:10px}
+
+.silk-top{
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  margin:0 0 12px;color:var(--silk);opacity:.82;
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+}
+
+/* 点阵外壳 */
+.matrix-shell{
+  background:#0a0b09;
+  border-radius:7px;
+  padding:9px;
+  box-shadow:inset 0 0 0 1px rgba(232,228,216,.14), inset 0 10px 24px rgba(0,0,0,.8), 0 2px 0 rgba(0,0,0,.4);
+}
+#matrix{display:block;width:100%;aspect-ratio:64 / 8}
+
+.module-row{
+  display:grid;grid-template-columns:repeat(8,1fr);
+  margin:8px 0 0;color:var(--silk-dim);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+}
+.module-row span{text-align:center}
+.module-row span::before{
+  content:"";display:block;width:1px;height:5px;margin:0 auto 3px;
+  background:rgba(232,228,216,.35);
+}
+
+/* 器件区 */
+.hardware{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;
+  gap:18px;align-items:center;margin-top:18px;
+}
+
+.chip{
+  position:relative;
+  background:#131412;
+  border-radius:5px;
+  padding:13px 26px 13px 22px;
+  box-shadow:inset 0 0 0 1px rgba(232,228,216,.1), 0 10px 18px -10px #000;
+}
+.chip::before,.chip::after{
+  content:"";position:absolute;top:6px;bottom:6px;width:8px;
+  background:repeating-linear-gradient(180deg, var(--gold) 0 5px, transparent 5px 11px);
+  opacity:.8;
+}
+.chip::before{left:-8px}
+.chip::after{right:-8px}
+.chip-mark{
+  position:absolute;top:7px;left:9px;
+  font-family:var(--mono);font-size:9px;color:rgba(232,228,216,.5);
+}
+.chip-body{display:flex;flex-direction:column;gap:2px}
+.chip-body b{font-size:12.5px;font-weight:500;letter-spacing:.05em;color:var(--silk)}
+.chip-body em{
+  font-style:normal;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;color:rgba(232,228,216,.45);
+}
+
+.status-cluster{display:flex;flex-direction:column;gap:8px}
+.led-wrap{display:flex;align-items:center;gap:7px}
+.led{
+  width:9px;height:9px;border-radius:50%;
+  background:#2a2d27;box-shadow:inset 0 1px 2px rgba(0,0,0,.7);
+  transition:background .25s, box-shadow .25s;
+}
+.led.on{background:var(--amber);box-shadow:0 0 10px rgba(255,176,32,.65), inset 0 1px 1px rgba(255,255,255,.5)}
+.led-link.is-scanning{background:var(--cyan);animation:pulse 1.3s ease-in-out infinite}
+.led-link.is-linked{background:var(--cyan);box-shadow:0 0 12px rgba(84,205,216,.75), inset 0 1px 1px rgba(255,255,255,.5)}
+.led-label{
+  font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--silk-dim);
+}
+.link-state{
+  margin:0;font-family:var(--mono);font-size:10px;letter-spacing:.05em;
+  color:rgba(232,228,216,.5);
+}
+
+/* 物理按键 */
+.keys{display:flex;gap:12px}
+.key{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:0;border:0;background:transparent;cursor:pointer;
+  color:inherit;font-family:inherit;
+}
+.key-cap{
+  width:76px;height:36px;border-radius:6px;
+  display:grid;place-items:center;
+  font-size:12.5px;letter-spacing:.1em;color:#f3ebda;
+  background:linear-gradient(#3d4042, #24272a);
+  border:1px solid #4a4e51;
+  box-shadow:0 3px 0 #0c0e0f, 0 8px 14px -8px #000, inset 0 1px 0 rgba(255,255,255,.18);
+  transition:transform .08s, box-shadow .08s;
+}
+.key-cap small{
+  display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+  color:rgba(255,255,255,.4);margin-top:-2px;
+}
+.key-burn .key-cap{
+  background:linear-gradient(#5a4520, #33280f);
+  border-color:#7a6228;color:#ffd08a;
+}
+.key-burn:active .key-cap,.key-reset:active .key-cap{
+  transform:translateY(2px);
+  box-shadow:0 1px 0 #0c0e0f, inset 0 2px 6px rgba(0,0,0,.55);
+}
+.key:disabled{cursor:progress}
+.key:disabled .key-cap{opacity:.6}
+.key:focus-visible{outline:none}
+.key:focus-visible .key-cap{outline:2px dashed var(--amber);outline-offset:3px}
+
+.pin-row{
+  display:flex;align-items:center;gap:5px;margin-top:16px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--silk-dim);
+}
+.pins{display:flex;gap:4px}
+.pins b{
+  width:5px;height:11px;border-radius:1px;
+  background:linear-gradient(var(--gold), #8a6f2c);
+}
+
+/* 图例 */
+.legend{
+  display:flex;flex-wrap:wrap;gap:18px;align-items:center;
+  margin-top:14px;color:var(--muted);font-size:11.5px;
+}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+.dot.on{background:var(--amber);box-shadow:0 0 8px rgba(255,176,32,.55)}
+.dot.off{background:#1d1f19;box-shadow:inset 0 0 0 1px rgba(232,228,216,.18)}
+
+/* 规格与流程 */
+.spec-card{margin-top:16px}
+.spec-readout{margin-top:0;padding-top:0;border-top:0}
+.flow{
+  list-style:decimal;
+  margin:13px 0 0;padding:12px 0 0 22px;
+  border-top:1px dashed rgba(232,228,216,.12);
+  display:flex;flex-direction:column;gap:6px;
+}
+.flow li{font-size:11.5px;color:#aeb6ba;line-height:1.5}
+.flow li::marker{color:var(--amber);font-family:var(--mono);font-size:10.5px}
+.flow li b{color:var(--ink);font-weight:500;margin-right:6px}
+
+/* ===================== 右侧机架 ===================== */
+.rack{display:flex;flex-direction:column;gap:16px}
+.card{
+  background:var(--card);
+  border:1px solid var(--card-line);
+  border-radius:10px;
+  padding:14px 16px 16px;
+}
+.card-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  margin-bottom:11px;
+}
+.card-head .mono{color:#707a7e}
+
+/* 进度段 */
+.progress{display:grid;grid-template-columns:repeat(24,1fr);gap:3px}
+.bar{height:8px;border-radius:2px;background:#23262a;transition:background .12s linear, box-shadow .12s}
+.bar.on{background:var(--amber);box-shadow:0 0 7px rgba(255,176,32,.45)}
+.progress-meta{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+}
+
+.readout{
+  display:grid;grid-template-columns:auto 1fr;gap:5px 14px;
+  margin:13px 0 0;padding-top:12px;border-top:1px dashed rgba(232,228,216,.12);
+}
+.readout dt{font-size:11px;color:var(--muted)}
+.readout dd{
+  margin:0;font-family:var(--mono);font-size:11px;color:#c8cfd2;
+  text-align:right;overflow-wrap:anywhere;
+}
+
+/* 输入 */
+.field{display:flex;flex-direction:column;gap:6px}
+.field > span{
+  font-size:11px;color:var(--muted);
+  display:flex;justify-content:space-between;gap:10px;
+}
+.field b{font-family:var(--mono);font-weight:500;color:#cfd6d9}
+input[type="text"], #cmdInput{
+  width:100%;padding:9px 11px;border-radius:7px;
+  background:#121518;border:1px solid #2a2f34;color:var(--ink);
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  outline:none;transition:border-color .15s;
+}
+input[type="text"]:focus,#cmdInput:focus{border-color:#4a6a63;box-shadow:0 0 0 3px rgba(84,205,216,.12)}
+.hint{margin:9px 0 0;font-size:11px;line-height:1.55;color:#79838a}
+.hint.warn{color:#c98d63}
+
+/* 滑块 */
+input[type="range"]{
+  -webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;cursor:pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:#2c3136}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;
+  background:var(--amber);border:1px solid #a97514;box-shadow:0 0 8px rgba(255,176,32,.4);
+}
+input[type="range"]::-moz-range-track{height:4px;border-radius:2px;background:#2c3136}
+input[type="range"]::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:var(--amber);border:1px solid #a97514;
+}
+
+.switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-size:12px;color:#c8cfd2}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.track{
+  width:34px;height:18px;border-radius:999px;background:#2b3035;position:relative;
+  transition:background .18s;flex:none;
+}
+.track::after{
+  content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:#8b9296;transition:transform .18s, background .18s;
+}
+.switch input:checked + .track{background:#5a4520}
+.switch input:checked + .track::after{transform:translateX(16px);background:var(--amber)}
+.switch input:focus-visible + .track{outline:2px dashed var(--amber);outline-offset:3px}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* 底部：串口控制台 + 固件源码 */
+.bottom{
+  display:grid;grid-template-columns:1.28fr 1fr;gap:16px;
+  margin-top:16px;align-items:stretch;
+}
+.panel-card{display:flex;flex-direction:column}
+.console-card{padding-bottom:13px}
+#log{
+  flex:none;height:420px;overflow:auto;overscroll-behavior:contain;
+  background:#0f1114;border:1px solid #24282d;border-radius:7px;
+  padding:10px 12px;font-family:var(--mono);font-size:11px;line-height:1.7;
+  color:#aeb6ba;
+}
+.line{white-space:pre-wrap;overflow-wrap:anywhere}
+.line .ts{color:#565e63}
+.line .tag{display:inline-block;min-width:44px;color:#7c858a}
+.line.tag-ok .tag{color:#8ed3a3}
+.line.tag-tx .tag{color:var(--amber)}
+.line.tag-link .tag{color:var(--cyan)}
+.line.tag-err .tag{color:var(--red)}
+.line.tag-flash .tag{color:#c9b98f}
+
+.cmd-form{display:flex;align-items:center;gap:9px;margin-top:10px}
+.cmd-form .prompt{color:var(--amber);font-size:12px}
+.cmd-form .send{
+  flex:none;padding:8px 14px;border-radius:7px;cursor:pointer;
+  background:#22262a;border:1px solid #333940;color:#cfd6d9;
+  font-family:var(--sans);font-size:12px;
+}
+.cmd-form .send:hover{background:#282d31;border-color:#414850}
+
+/* 固件源码区 */
+.code-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ghost-btn{
+  padding:4px 10px;border-radius:6px;cursor:pointer;
+  background:#20242a;border:1px solid #31363d;color:#9fa7ab;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+  transition:color .15s, border-color .15s;
+}
+.ghost-btn:hover{color:#e6e4dc;border-color:#4a525a}
+.ghost-btn:focus-visible{outline:2px dashed var(--amber);outline-offset:2px}
+.code-view{
+  position:relative;flex:none;height:420px;
+  display:flex;overflow:hidden;
+  border:1px solid #24282d;border-radius:7px;background:#0f1114;
+}
+.gutter{
+  flex:none;width:36px;padding:10px 8px 10px 0;text-align:right;
+  font-family:var(--mono);font-size:11px;line-height:1.75;color:#4b5358;
+  background:#0c0e11;border-right:1px solid #1e2227;overflow:hidden;
+  user-select:none;
+}
+.code-view::after{
+  content:'';position:absolute;left:1px;right:14px;bottom:1px;height:22px;
+  pointer-events:none;border-radius:0 0 7px 7px;
+  background:linear-gradient(to top,#0f1114 42%,rgba(15,17,20,0));
+}
+.code-stack{position:relative;flex:1;min-width:0}
+.code-hl,.code-input{
+  position:absolute;inset:0;margin:0;padding:10px 12px;
+  font-family:var(--mono);font-size:11px;line-height:1.75;
+  white-space:pre;tab-size:4;
+}
+.code-hl{overflow:hidden;pointer-events:none;color:#b3bbc0}
+.code-input{
+  border:0;outline:none;resize:none;overflow:auto;
+  background:transparent;color:transparent;caret-color:var(--amber);
+}
+.code-input::selection{background:rgba(255,176,32,.22);color:transparent}
+.code-input:focus{box-shadow:inset 0 0 0 1px rgba(84,205,216,.28)}
+.tok-com{color:#5b6a63}
+.tok-str{color:#e5b877}
+.tok-pre{color:#c9a05e}
+.tok-kw{color:#8fb3c4}
+.tok-num{color:#d1a068}
+.tok-fn{color:#cfd6d9}
+.hint code{font-family:var(--mono);color:#c9b98f}
+
+footer{
+  margin-top:24px;padding-top:14px;border-top:1px dashed rgba(232,228,216,.14);
+  display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  color:var(--muted);font-size:11px;
+}
+footer code{font-family:var(--mono);color:#a9b1b5}
+
+@keyframes pulse{0%,100%{opacity:.35;box-shadow:0 0 0 rgba(84,205,216,0)}50%{opacity:1;box-shadow:0 0 12px rgba(84,205,216,.7)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* 响应式 */
+@media (max-width:1080px){
+  .main{grid-template-columns:1fr}
+  .bottom{grid-template-columns:1fr}
+  .hardware{grid-template-columns:1fr auto;gap:14px}
+  .keys{grid-column:1 / -1;justify-content:flex-start}
+}
+@media (max-width:560px){
+  .bench{padding:18px 14px 26px}
+  h1{font-size:19px}
+  .masthead{flex-direction:column;align-items:flex-start;gap:12px}
+  .mast-right{align-items:flex-start}
+  .key-cap{width:64px;height:33px}
+  #log{height:220px}
+  .code-view{height:240px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="bench">
+
+  <!-- ===== 眉标 ===== -->
+  <header class="masthead">
+    <div class="mast-left">
+      <span class="tag-label">SIM-01 / SparkLink Matrix DevKit</span>
+      <h1>星闪点阵开发板 <span class="thin">· 在线仿真台</span></h1>
+    </div>
+    <div class="mast-right">
+      <div class="pill" id="linkPill"><i></i><b id="linkPillText">星闪未连接</b></div>
+      <span class="mono" style="color:#707a7e">8×64 点阵 / 5×7 字库 / 串口 115200 8N1</span>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- ===== 板卡 ===== -->
+    <section class="stage" aria-label="开发板">
+      <div class="board">
+        <span class="screw tl"></span><span class="screw tr"></span>
+        <span class="screw bl"></span><span class="screw br"></span>
+
+        <p class="silk-top">
+          <span>SPARKLINK SIM-01</span>
+          <span>P3 · DOT MATRIX 8×64</span>
+        </p>
+
+        <div class="matrix-shell">
+          <canvas id="matrix" width="1024" height="128" aria-label="8 行 64 列点阵屏"></canvas>
+        </div>
+        <div class="module-row" id="moduleRow" aria-hidden="true"></div>
+
+        <div class="hardware">
+          <div class="chip">
+            <span class="chip-mark">U1</span>
+            <div class="chip-body">
+              <b>星闪模组</b>
+              <em>SPARKLINK · 模拟单元</em>
+            </div>
+          </div>
+
+          <div class="status-cluster">
+            <div class="led-wrap">
+              <span class="led on"></span>
+              <span class="led-label">PWR</span>
+            </div>
+            <div class="led-wrap">
+              <span class="led led-link" id="linkLed"></span>
+              <span class="led-label">LINK</span>
+            </div>
+            <p class="link-state" id="linkState">未连接</p>
+          </div>
+
+          <div class="keys">
+            <button class="key key-burn" id="burnBtn" type="button">
+              <span class="key-cap">烧录<small>BOOT</small></span>
+            </button>
+            <button class="key key-reset" id="resetBtn" type="button">
+              <span class="key-cap">复位<small>RST</small></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pin-row">
+          <span>J1 烧录口</span>
+          <span class="pins"><b></b><b></b><b></b><b></b><b></b><b></b></span>
+          <span>TX · RX · 3V3 · GND</span>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><i class="dot on"></i>点亮 = 逻辑 1</span>
+        <span><i class="dot off"></i>熄灭 = 逻辑 0</span>
+        <span>字模 5×7 ＋ 1 列字距</span>
+        <span>8 片 8×8 模组级联</span>
+      </div>
+
+      <!-- 规格与流程 -->
+      <div class="card spec-card">
+        <div class="card-head">
+          <h2>点阵规格与上电流程</h2>
+          <span class="mono">64 × 8</span>
+        </div>
+        <dl class="readout spec-readout">
+          <dt>单字点阵</dt><dd>5 × 7 ＋ 1 列字距</dd>
+          <dt>单屏容量</dt><dd>10 字 / 64 列</dd>
+          <dt>字符集</dt><dd>ASCII 32–126</dd>
+        </dl>
+        <ol class="flow">
+          <li><b>上电</b>点阵清空，LINK 熄灭</li>
+          <li><b>烧录</b>编译 → 擦除 → 写入 → 校验</li>
+          <li><b>运行</b>逐列点亮文字，LINK 常亮</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ===== 机架 ===== -->
+    <aside class="rack" aria-label="控制台">
+
+      <!-- 烧录状态 -->
+      <div class="card">
+        <div class="card-head">
+          <h2>烧录状态</h2>
+          <span class="mono" id="phaseText">待机</span>
+        </div>
+        <div class="progress" id="progress" aria-hidden="true"></div>
+        <div class="progress-meta">
+          <span id="progressText">0%</span>
+          <span id="progressNote">等待烧录</span>
+        </div>
+        <dl class="readout">
+          <dt>固件</dt><dd id="fwName">starflash.bin</dd>
+          <dt>写入地址</dt><dd>0x00000000</dd>
+          <dt>待烧录文本</dt><dd id="pendingText">hollowold</dd>
+        </dl>
+      </div>
+
+      <!-- 字库与文本 -->
+      <div class="card">
+        <div class="card-head">
+          <h2>字库与显示文本</h2>
+          <span class="mono">5×7 ASCII</span>
+        </div>
+        <label class="field" for="textInput">
+          <span>烧录文本</span>
+        </label>
+        <input type="text" id="textInput" maxlength="32" value="hollowold" spellcheck="false" autocomplete="off">
+        <p class="hint" id="textHint">仅支持 ASCII 可见字符；单屏最多 10 字，更长请开启滚动字幕。</p>
+      </div>
+
+      <!-- 显示参数 -->
+      <div class="card">
+        <div class="card-head">
+          <h2>显示参数</h2>
+          <span class="mono" id="scrollState">滚动关闭</span>
+        </div>
+        <label class="field">
+          <span>亮度 <b id="brightVal">72%</b></span>
+          <input type="range" id="bright" min="10" max="100" step="2" value="72">
+        </label>
+        <div class="row-between" style="margin:4px 0 12px">
+          <label class="switch">
+            <input type="checkbox" id="scrollToggle">
+            <span class="track"></span>
+            <span>滚动字幕</span>
+          </label>
+          <span class="mono" style="color:#79838a" id="charCount">9 字</span>
+        </div>
+        <label class="field">
+          <span>滚动速度 <b id="speedVal">10 列/秒</b></span>
+          <input type="range" id="speed" min="2" max="24" step="1" value="10">
+        </label>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- ===== 底部：串口控制台 + 固件源码 ===== -->
+  <section class="bottom" aria-label="串口与固件源码">
+
+    <div class="card console-card panel-card">
+      <div class="card-head">
+        <h2>串口控制台</h2>
+        <span class="mono">COM3 · 115200 8N1</span>
+      </div>
+      <div id="log"></div>
+      <form class="cmd-form" id="cmdForm" autocomplete="off">
+        <span class="prompt mono">&gt;</span>
+        <input id="cmdInput" type="text" placeholder="输入 help 查看可用命令">
+        <button class="send" type="submit">发送</button>
+      </form>
+    </div>
+
+    <div class="card code-card panel-card">
+      <div class="card-head">
+        <h2>固件源码</h2>
+        <div class="code-head-actions">
+          <span class="mono">app_main.c · 可编辑</span>
+          <button class="ghost-btn" id="codeReset" type="button">恢复默认</button>
+        </div>
+      </div>
+      <div class="code-view">
+        <div class="gutter" id="codeGutter" aria-hidden="true"></div>
+        <div class="code-stack">
+          <pre class="code-hl" id="codeHl" aria-hidden="true"></pre>
+          <textarea class="code-input" id="codeArea" spellcheck="false" wrap="off"
+                    aria-label="固件源码，可编辑，改 DISPLAY_TEXT 即可换字"></textarea>
+        </div>
+      </div>
+      <p class="hint">改 <code>DISPLAY_TEXT</code> 里的字符串就能换字，改完直接点「烧录」；其余代码仅作展示，不影响仿真。</p>
+    </div>
+
+  </section>
+
+  <footer>
+    <span>字符点阵直接由内置 5×7 字模表驱动；修改源码顶部 <code>CONFIG.DEFAULT_TEXT</code> 可更换上电文字。</span>
+    <span class="mono" style="color:#5f686d">SIM-01 / build 2026.11</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   0. 可修改的配置 —— 换文字、换默认亮度都改这里
+   ============================================================ */
+const CONFIG = {
+  DEFAULT_TEXT: 'hollowold',      // 上电待烧录 / 烧录后显示的字符串
+  DEFAULT_BRIGHTNESS: 72,
+  DEFAULT_SPEED: 10,              // 滚动速度：列 / 秒
+  STATIC_MAX_CHARS: 10,           // 单屏可放字符数（5 列字宽 + 1 列字距 = 6）
+  LINK_MAC: '3C:2A:F0:1B:8E:47'
+};
+
+const COLS = 64;   // 8 片 8×8 模组级联
+const ROWS = 8;
+
+/* ============================================================
+   1. 内置 5×7 字符字模表（ASCII 32–126）
+      每个字符 5 列，列内 bit0 为最上一行，bit7 为下伸行
+   ============================================================ */
+const FONT5X7 = [
+  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x5F,0x00,0x00,0x00,0x07,0x00,0x07,0x00,
+  0x14,0x7F,0x14,0x7F,0x14,0x24,0x2A,0x7F,0x2A,0x12,0x23,0x13,0x08,0x64,0x62,
+  0x36,0x49,0x56,0x20,0x50,0x00,0x08,0x07,0x03,0x00,0x00,0x1C,0x22,0x41,0x00,
+  0x00,0x41,0x22,0x1C,0x00,0x2A,0x1C,0x7F,0x1C,0x2A,0x08,0x08,0x3E,0x08,0x08,
+  0x00,0x80,0x70,0x30,0x00,0x08,0x08,0x08,0x08,0x08,0x00,0x00,0x60,0x60,0x00,
+  0x20,0x10,0x08,0x04,0x02,0x3E,0x51,0x49,0x45,0x3E,0x00,0x42,0x7F,0x40,0x00,
+  0x72,0x49,0x49,0x49,0x46,0x21,0x41,0x49,0x4D,0x33,0x18,0x14,0x12,0x7F,0x10,
+  0x27,0x45,0x45,0x45,0x39,0x3C,0x4A,0x49,0x49,0x31,0x41,0x21,0x11,0x09,0x07,
+  0x36,0x49,0x49,0x49,0x36,0x46,0x49,0x49,0x29,0x1E,0x00,0x00,0x14,0x00,0x00,
+  0x00,0x40,0x34,0x00,0x00,0x00,0x08,0x14,0x22,0x41,0x14,0x14,0x14,0x14,0x14,
+  0x00,0x41,0x22,0x14,0x08,0x02,0x01,0x59,0x09,0x06,0x3E,0x41,0x5D,0x59,0x4E,
+  0x7C,0x12,0x11,0x12,0x7C,0x7F,0x49,0x49,0x49,0x36,0x3E,0x41,0x41,0x41,0x22,
+  0x7F,0x41,0x41,0x41,0x3E,0x7F,0x49,0x49,0x49,0x41,0x7F,0x09,0x09,0x09,0x01,
+  0x3E,0x41,0x41,0x51,0x73,0x7F,0x08,0x08,0x08,0x7F,0x00,0x41,0x7F,0x41,0x00,
+  0x20,0x40,0x41,0x3F,0x01,0x7F,0x08,0x14,0x22,0x41,0x7F,0x40,0x40,0x40,0x40,
+  0x7F,0x02,0x1C,0x02,0x7F,0x7F,0x04,0x08,0x10,0x7F,0x3E,0x41,0x41,0x41,0x3E,
+  0x7F,0x09,0x09,0x09,0x06,0x3E,0x41,0x51,0x21,0x5E,0x7F,0x09,0x19,0x29,0x46,
+  0x26,0x49,0x49,0x49,0x32,0x03,0x01,0x7F,0x01,0x03,0x3F,0x40,0x40,0x40,0x3F,
+  0x1F,0x20,0x40,0x20,0x1F,0x3F,0x40,0x38,0x40,0x3F,0x63,0x14,0x08,0x14,0x63,
+  0x03,0x04,0x78,0x04,0x03,0x61,0x59,0x49,0x4D,0x43,0x00,0x7F,0x41,0x41,0x41,
+  0x02,0x04,0x08,0x10,0x20,0x00,0x41,0x41,0x41,0x7F,0x04,0x02,0x01,0x02,0x04,
+  0x40,0x40,0x40,0x40,0x40,0x00,0x03,0x07,0x08,0x00,0x20,0x54,0x54,0x78,0x40,
+  0x7F,0x28,0x44,0x44,0x38,0x38,0x44,0x44,0x44,0x28,0x38,0x44,0x44,0x28,0x7F,
+  0x38,0x54,0x54,0x54,0x18,0x00,0x08,0x7E,0x09,0x02,0x18,0xA4,0xA4,0x9C,0x78,
+  0x7F,0x08,0x04,0x04,0x78,0x00,0x44,0x7D,0x40,0x00,0x20,0x40,0x40,0x3D,0x00,
+  0x7F,0x10,0x28,0x44,0x00,0x00,0x41,0x7F,0x40,0x00,0x7C,0x04,0x78,0x04,0x78,
+  0x7C,0x08,0x04,0x04,0x78,0x38,0x44,0x44,0x44,0x38,0xFC,0x18,0x24,0x24,0x18,
+  0x18,0x24,0x24,0x18,0xFC,0x7C,0x08,0x04,0x04,0x08,0x48,0x54,0x54,0x54,0x24,
+  0x04,0x04,0x3F,0x44,0x24,0x3C,0x40,0x40,0x20,0x7C,0x1C,0x20,0x40,0x20,0x1C,
+  0x3C,0x40,0x30,0x40,0x3C,0x44,0x28,0x10,0x28,0x44,0x4C,0x90,0x90,0x90,0x7C,
+  0x44,0x64,0x54,0x4C,0x44,0x00,0x08,0x36,0x41,0x00,0x00,0x00,0x77,0x00,0x00,
+  0x00,0x41,0x36,0x08,0x00,0x02,0x01,0x02,0x04,0x02
+];
+
+/* ============================================================
+   2. 状态
+   ============================================================ */
+const state = {
+  phase: 'idle',            // idle | build | flash | run
+  link: 'off',              // off | scanning | linked
+  progress: 0,
+  brightness: CONFIG.DEFAULT_BRIGHTNESS,
+  scroll: false,
+  speed: CONFIG.DEFAULT_SPEED,
+  reveal: 1,                // 烧录完成后逐列点亮 0→1
+  offset: 0,                // 滚动偏移（列）
+  busy: false
+};
+
+const pending = { text: CONFIG.DEFAULT_TEXT };
+const buf = new Uint8Array(COLS * ROWS);
+let textCols = new Uint8Array(0);
+let textWidth = 0;
+let token = 0;
+let syncProgressUI = () => {};
+let syncLinkUI = () => {};
+
+/* ============================================================
+   3. DOM
+   ============================================================ */
+const canvas   = document.getElementById('matrix');
+const ctx      = canvas.getContext('2d');
+const logEl    = document.getElementById('log');
+const burnBtn  = document.getElementById('burnBtn');
+const resetBtn = document.getElementById('resetBtn');
+const textInput= document.getElementById('textInput');
+const textHint = document.getElementById('textHint');
+const brightEl = document.getElementById('bright');
+const speedEl  = document.getElementById('speed');
+const scrollEl = document.getElementById('scrollToggle');
+
+/* 生成 24 段进度块 */
+const progressEl = document.getElementById('progress');
+const bars = [];
+for (let i = 0; i < 24; i++) {
+  const b = document.createElement('span');
+  b.className = 'bar';
+  progressEl.appendChild(b);
+  bars.push(b);
+}
+/* 模组序号 */
+const moduleRow = document.getElementById('moduleRow');
+for (let i = 0; i < 8; i++) {
+  const s = document.createElement('span');
+  s.textContent = 'M' + (i + 1);
+  moduleRow.appendChild(s);
+}
+
+/* ============================================================
+   4. 字模 → 列数据（核心渲染逻辑）
+   ============================================================ */
+function glyphOf(ch) {
+  const code = ch.charCodeAt(0);
+  if (code < 32 || code > 126) return null;
+  const base = (code - 32) * 5;
+  return [FONT5X7[base], FONT5X7[base + 1], FONT5X7[base + 2], FONT5X7[base + 3], FONT5X7[base + 4]];
+}
+
+/** 把字符串编译成列数据：每字 5 列，字间 1 列空隙 */
+function compileText(raw) {
+  const cols = [];
+  const skipped = [];
+  const chars = [...raw];
+  chars.forEach((ch, i) => {
+    const g = glyphOf(ch);
+    if (!g) { skipped.push(ch); return; }
+    for (let k = 0; k < 5; k++) cols.push(g[k]);
+    if (i < chars.length - 1) cols.push(0x00);
+  });
+  textCols = Uint8Array.from(cols);
+  textWidth = textCols.length;
+  return skipped;
+}
+
+/** 点亮一个像素 */
+function set(col, row) {
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+  buf[row * COLS + col] = 1;
+}
+
+/** 逐列写入字模数据 */
+function paintColumn(srcIndex, col) {
+  const byte = textCols[srcIndex];
+  if (!byte) return;
+  for (let r = 0; r < ROWS; r++) {
+    if ((byte >> r) & 1) set(col, r);
+  }
+}
+
+/** 组帧：进度条 / 文本 */
+function buildFrame() {
+  buf.fill(0);
+
+  if (state.phase === 'build' || state.phase === 'flash') {
+    const filled = Math.round(state.progress * COLS);
+    for (let c = 0; c < filled; c++) {
+      for (let r = 2; r < 6; r++) set(c, r);
+    }
+    if (filled < COLS) for (let r = 2; r < 6; r++) set(filled, r);
+    return;
+  }
+
+  if (state.phase === 'run' && textWidth > 0) {
+    const revealCols = Math.round(COLS * state.reveal);
+    if (state.scroll) {
+      const cycle = textWidth + 8;           // 尾部留 8 列空档
+      const off = Math.floor(state.offset) % cycle;
+      for (let c = 0; c < COLS; c++) {
+        if (c >= revealCols) continue;
+        const src = (c + off) % cycle;
+        if (src >= textWidth) continue;
+        paintColumn(src, c);
+      }
+    } else {
+      const start = Math.floor((COLS - textWidth) / 2);
+      for (let i = 0; i < textWidth; i++) {
+        if (i >= revealCols) break;
+        paintColumn(i, start + i);
+      }
+    }
+  }
+}
+
+/* ============================================================
+   5. 画到屏幕
+   ============================================================ */
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+let needDraw = true;
+
+function draw() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (!w || !h) return;
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  const cw = w / COLS;
+  const ch = h / ROWS;
+  const b = state.brightness / 100;
+
+  ctx.clearRect(0, 0, w, h);
+
+  /* 模组之间的接缝 */
+  ctx.fillStyle = 'rgba(0,0,0,.6)';
+  for (let c = 8; c < COLS; c += 8) ctx.fillRect(c * cw - 0.75, 0, 1.5, h);
+
+  const d = Math.min(cw, ch) * 0.84;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const on = buf[r * COLS + c];
+      const x = c * cw + (cw - d) / 2;
+      const y = r * ch + (ch - d) / 2;
+
+      if (on) {
+        ctx.shadowColor = 'rgba(255,168,32,' + (0.28 + 0.5 * b).toFixed(3) + ')';
+        ctx.shadowBlur = d * (0.5 + 0.6 * b);
+        ctx.fillStyle = 'rgba(255,176,40,' + (0.34 + 0.66 * b).toFixed(3) + ')';
+        roundRect(x, y, d, d, d * 0.26);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,228,176,' + (0.35 + 0.5 * b).toFixed(3) + ')';
+        roundRect(x + d * 0.3, y + d * 0.3, d * 0.4, d * 0.4, d * 0.2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#1c1e19';
+        roundRect(x, y, d, d, d * 0.26);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(232,228,216,.045)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+/* ============================================================
+   6. 串口控制台
+   ============================================================ */
+function stamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) +
+         '.' + String(d.getMilliseconds()).padStart(3, '0');
+}
+
+function log(tag, text) {
+  const line = document.createElement('div');
+  line.className = 'line tag-' + tag;
+  line.innerHTML = '<span class="ts">[' + stamp() + ']</span> ' +
+                   '<span class="tag">' + tag + '</span>' + escapeHtml(text);
+  logEl.appendChild(line);
+  while (logEl.childElementCount > 220) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ============================================================
+   7. 界面同步
+   ============================================================ */
+function syncAll() {
+  syncProgressUI();
+  syncLinkUI();
+}
+const wait = ms => new Promise(res => setTimeout(res, ms));
+
+/* 烧录状态卡 */
+function syncStateCard() {
+  const phaseNames = { idle: '待机', build: '编译中', flash: '写入中', run: '运行中' };
+  document.getElementById('phaseText').textContent = phaseNames[state.phase];
+  const pct = Math.round(state.progress * 100);
+  const lit = Math.round(state.progress * 24);
+  bars.forEach((b, i) => b.classList.toggle('on', i < lit));
+  document.getElementById('progressText').textContent = pct + '%';
+  const notes = { idle: '等待烧录', build: 'scons 编译中', flash: 'SPI Flash 写入', run: '运行正常' };
+  document.getElementById('progressNote').textContent = notes[state.phase];
+  document.getElementById('pendingText').textContent = pending.text || '(空)';
+  document.getElementById('fwName').textContent =
+    state.phase === 'run' ? 'starflash.bin · 17,392 B' : 'starflash.bin';
+}
+
+function syncLink() {
+  document.getElementById('linkLed').className =
+    'led led-link' + (state.link === 'scanning' ? ' is-scanning' : state.link === 'linked' ? ' is-linked' : '');
+  const pill = document.getElementById('linkPill');
+  pill.classList.toggle('is-linked', state.link === 'linked');
+  pill.classList.toggle('is-scanning', state.link === 'scanning');
+  const names = { off: '星闪未连接', scanning: '星闪搜索中', linked: '星闪已连接' };
+  document.getElementById('linkPillText').textContent = names[state.link];
+  document.getElementById('linkState').textContent =
+    state.link === 'off' ? '未连接' : state.link === 'scanning' ? '搜索中…' : CONFIG.LINK_MAC;
+}
+syncProgressUI = syncStateCard;
+syncLinkUI = syncLink;
+
+function syncTextUI() {
+  const n = [...pending.text].length;
+  document.getElementById('charCount').textContent = n + ' 字';
+  const overflow = n > CONFIG.STATIC_MAX_CHARS && !state.scroll;
+  textHint.classList.toggle('warn', overflow);
+  textHint.textContent = overflow
+    ? '当前文本 ' + n + ' 字，超单屏 ' + CONFIG.STATIC_MAX_CHARS + ' 字；未开启滚动时右侧会被裁掉。'
+    : '仅支持 ASCII 可见字符；单屏最多 10 字，更长请开启滚动字幕。';
+}
+
+/* ============================================================
+   8. 烧录流程
+   ============================================================ */
+async function burn() {
+  if (state.busy) return;
+  const t = ++token;
+  const alive = () => t === token;
+  state.busy = true;
+
+  state.phase = 'build';
+  state.progress = 0;
+  state.reveal = 0;
+  state.offset = 0;
+  state.link = 'off';
+  syncAll();
+  burnBtn.disabled = true;
+
+  const skipped = compileText(pending.text);
+  log('cmd', '>> scons --target=iotlink --board=sim01');
+  await wait(200); if (!alive()) return;
+
+  const steps = [
+    ['CC', 'app/main.c'],
+    ['CC', 'bsp/dot_matrix.c'],
+    ['CC', 'bsp/sparklink_link.c'],
+    ['CC', 'font/font_5x7.c'],
+    ['LD', 'build/sim01.elf'],
+    ['OBJ', 'build/starflash.bin (17,392 B)']
+  ];
+  for (let i = 0; i < steps.length; i++) {
+    await wait(150); if (!alive()) return;
+    state.progress = ((i + 1) / steps.length) * 0.5;
+    log(steps[i][0], steps[i][1]);
+    syncStateCard();
+    needDraw = true;
+  }
+
+  state.phase = 'flash';
+  log('flash', '擦除 0x00000000 – 0x0000FFFF ... 完成');
+  await wait(140); if (!alive()) return;
+
+  for (let i = 1; i <= 5; i++) {
+    await wait(120); if (!alive()) return;
+    state.progress = 0.5 + (i / 5) * 0.5;
+    log('flash', '写入 ' + (i * 20) + '% · ' + (i * 3478).toLocaleString('en-US') + ' B');
+    syncStateCard();
+    needDraw = true;
+  }
+
+  state.progress = 1;
+  syncStateCard();
+  log('ok', '校验 CRC32 通过 · 烧录完成，用时 1.86s');
+  if (skipped.length) {
+    log('err', '字库缺少字符 ' + skipped.map(c => "'" + c + "'").join(' ') + '，已跳过');
+  }
+  await wait(180); if (!alive()) return;
+
+  state.link = 'scanning';
+  syncLink();
+  log('link', '星闪模组上电，开始搜索配对...');
+  await wait(760); if (!alive()) return;
+
+  state.link = 'linked';
+  syncLink();
+  log('ok', '星闪连接建立 · MAC ' + CONFIG.LINK_MAC + ' · 2.4G 频段');
+
+  state.phase = 'run';
+  state.reveal = 0;
+  state.busy = false;
+  burnBtn.disabled = false;
+  syncStateCard();
+  log('sys', '显示任务启动 · ' + [...pending.text].length + ' 字 · 字模 5×7');
+  needDraw = true;
+}
+
+/* ============================================================
+   9. 复位
+   ============================================================ */
+function reset() {
+  token++;
+  state.busy = false;
+  burnBtn.disabled = false;
+  state.phase = 'idle';
+  state.progress = 0;
+  state.link = 'off';
+  state.reveal = 1;
+  state.offset = 0;
+
+  /* 恢复上电默认 */
+  state.scroll = false;
+  scrollEl.checked = false;
+  state.speed = CONFIG.DEFAULT_SPEED;
+  speedEl.value = String(CONFIG.DEFAULT_SPEED);
+  document.getElementById('speedVal').textContent = CONFIG.DEFAULT_SPEED + ' 列/秒';
+  document.getElementById('scrollState').textContent = '滚动关闭';
+  setBrightness(CONFIG.DEFAULT_BRIGHTNESS);
+  textCols = new Uint8Array(0);
+  textWidth = 0;
+
+  buf.fill(0);
+  needDraw = true;
+  syncAll();
+  syncTextUI();
+
+  log('sys', 'SW1 / RST 按下 → MCU 复位');
+  log('sys', '点阵清屏 · 链路断开 · 显示参数恢复默认');
+  log('sys', '等待重新烧录');
+}
+
+/* ============================================================
+   10. 亮度 / 滚动 / 速度
+   ============================================================ */
+function setBrightness(v) {
+  state.brightness = v;
+  brightEl.value = String(v);
+  document.getElementById('brightVal').textContent = v + '%';
+  needDraw = true;
+}
+
+brightEl.addEventListener('input', e => setBrightness(Number(e.target.value)));
+speedEl.addEventListener('input', e => {
+  state.speed = Number(e.target.value);
+  document.getElementById('speedVal').textContent = state.speed + ' 列/秒';
+});
+scrollEl.addEventListener('change', e => {
+  state.scroll = e.target.checked;
+  state.offset = 0;
+  document.getElementById('scrollState').textContent = state.scroll ? '滚动开启' : '滚动关闭';
+  syncTextUI();
+  needDraw = true;
+});
+
+/* 文本输入 */
+textInput.addEventListener('input', e => {
+  pending.text = e.target.value;
+  state.reveal = 1;
+  /* 运行中允许直接改字，省去一次烧录 */
+  if (state.phase === 'run') {
+    const skipped = compileText(pending.text);
+    if (skipped.length) log('err', '字库缺少字符 ' + skipped.map(c => "'" + c + "'").join(' '));
+    log('sys', '显示缓存已更新：' + (pending.text || '(空)'));
+    needDraw = true;
+  }
+  /* 反向同步进源码区 */
+  if (document.activeElement !== codeArea) writeCodeText(pending.text);
+  syncTextUI();
+  syncStateCard();
+});
+
+/* ============================================================
+   11. 按钮
+   ============================================================ */
+burnBtn.addEventListener('click', burn);
+resetBtn.addEventListener('click', reset);
+
+/* 串口命令 */
+function runCommand(raw) {
+  const line = raw.trim();
+  if (!line) return;
+  log('tx', '$ ' + line);
+  const parts = line.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const rest = parts.slice(1).join(' ');
+
+  switch (cmd) {
+    case 'help':
+      log('sys', '可用命令：');
+      log('sys', '  burn            执行烧录');
+      log('sys', '  reset           复位并清屏');
+      log('sys', '  disp <text>     设置待烧录文本');
+      log('sys', '  scroll on|off   滚动字幕');
+      log('sys', '  bright <10-100> 亮度');
+      log('sys', '  stat            查看运行状态');
+      log('sys', '  cls             清屏控制台');
+      break;
+    case 'burn':
+      burn();
+      break;
+    case 'reset':
+      reset();
+      break;
+    case 'disp':
+      if (!rest) { log('err', '用法：disp <text>'); break; }
+      pending.text = rest;
+      textInput.value = rest;
+      if (state.phase === 'run') {
+        compileText(rest);
+        state.reveal = 1;
+        needDraw = true;
+      }
+      log('sys', '待烧录文本 → ' + rest);
+      syncTextUI();
+      syncStateCard();
+      break;
+    case 'scroll':
+      if (rest !== 'on' && rest !== 'off') { log('err', '用法：scroll on|off'); break; }
+      state.scroll = rest === 'on';
+      scrollEl.checked = state.scroll;
+      document.getElementById('scrollState').textContent = state.scroll ? '滚动开启' : '滚动关闭';
+      log('sys', '滚动字幕 ' + (state.scroll ? '已开启' : '已关闭'));
+      syncTextUI();
+      needDraw = true;
+      break;
+    case 'bright': {
+      const v = Number(rest);
+      if (!Number.isFinite(v) || v < 10 || v > 100) { log('err', '用法：bright 10-100'); break; }
+      setBrightness(v);
+      log('sys', '亮度 → ' + v + '%');
+      break;
+    }
+    case 'stat': {
+      const names = { idle: '待机', build: '编译中', flash: '写入中', run: '运行中' };
+      const links = { off: '未连接', scanning: '搜索中', linked: '已连接' };
+      log('sys', '状态 ' + names[state.phase] + ' / 链接 ' + links[state.link] +
+                 ' / 亮度 ' + state.brightness + '% / 滚动 ' + (state.scroll ? '开' : '关'));
+      log('sys', '文本 ' + (pending.text || '(空)') + ' · 字宽 ' + textWidth + ' 列 / 屏 64 列');
+      break;
+    }
+    case 'cls':
+      logEl.innerHTML = '';
+      break;
+    default:
+      log('err', '未知命令：' + cmd + '，输入 help 查看');
+  }
+}
+
+document.getElementById('cmdForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const input = document.getElementById('cmdInput');
+  runCommand(input.value);
+  input.value = '';
+});
+
+/* ============================================================
+   12. 渲染循环
+   ============================================================ */
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+
+  if (state.phase === 'run') {
+    if (state.reveal < 1) {
+      state.reveal = Math.min(1, state.reveal + dt / 0.38);
+      needDraw = true;
+    }
+    if (state.scroll && textWidth > 0) {
+      state.offset += state.speed * dt;
+      if (state.offset >= textWidth + 8) state.offset -= (textWidth + 8);
+      needDraw = true;
+    }
+  }
+
+  if (needDraw) {
+    buildFrame();
+    draw();
+    needDraw = false;
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ============================================================
+   13. 固件源码区（可编辑，改 DISPLAY_TEXT 即换字）
+   ============================================================ */
+const CODE_DEFAULT = `/* SIM-01 固件 · 点阵显示任务
+ * 8×64 点阵，5×7 字模
+ */
+#include "sparklink.h"
+#include "font_5x7.h"
+
+#define ROWS         8
+#define COLS         64
+#define DISPLAY_TEXT "hollowold"    /* ← 改这里换文字 */
+
+static uint8_t frame[ROWS][COLS];
+
+void build_frame(const char *s)
+{
+    int col = 0;
+    for (const char *p = s; *p; ++p) {
+        uint8_t g[5];
+        font5x7_glyph(*p, g);          /* 取该字符的 5 列字节 */
+        matrix_blit(col, g, 5);
+        col += 6;                      /* 5 列字宽 + 1 列字距 */
+    }
+}
+
+void app_main(void)
+{
+    matrix_init(COLS, ROWS);
+    matrix_brightness(72);             /* 亮度 % */
+    sparklink_link_up();
+    build_frame(DISPLAY_TEXT);
+    matrix_flush();
+    while (1) { os_delay(100); }
+}`;
+
+const codeArea   = document.getElementById('codeArea');
+const codeHl     = document.getElementById('codeHl');
+const codeGutter = document.getElementById('codeGutter');
+
+const CODE_RE = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:[^"\\]|\\.)*"|^[ \t]*#[a-z]+|\b(?:void|const|char|int|uint8_t|static|for|while|return|if|else)\b|\b\d+\b|\b[A-Za-z_]\w*(?=\s*\()/gm;
+const KW_RE = /^(void|const|char|int|uint8_t|static|for|while|return|if|else)$/;
+
+function highlightCode(src) {
+  const escaped = escapeHtml(src);
+  return escaped.replace(CODE_RE, m => {
+    let cls = 'tok-fn';
+    if (m.startsWith('/*') || m.startsWith('//')) cls = 'tok-com';
+    else if (m.charCodeAt(0) === 34) cls = 'tok-str';
+    else if (m.trimStart().startsWith('#')) cls = 'tok-pre';
+    else if (/^\d/.test(m)) cls = 'tok-num';
+    else if (KW_RE.test(m)) cls = 'tok-kw';
+    return '<span class="' + cls + '">' + m + '</span>';
+  });
+}
+
+function syncCodeScroll() {
+  codeHl.scrollTop = codeArea.scrollTop;
+  codeHl.scrollLeft = codeArea.scrollLeft;
+  codeGutter.scrollTop = codeArea.scrollTop;
+}
+
+function renderCode() {
+  const src = codeArea.value;
+  codeHl.innerHTML = highlightCode(src) + '\n';
+  const lines = src.split('\n').length;
+  let g = '';
+  for (let i = 1; i <= lines; i++) g += '<div>' + i + '</div>';
+  codeGutter.innerHTML = g;
+  syncCodeScroll();
+}
+
+/** 从源码里取出 DISPLAY_TEXT 的字符串 */
+function parseCodeText(src) {
+  const m = src.match(/#define\s+DISPLAY_TEXT\s+"((?:[^"\\]|\\.)*)"/);
+  return m ? m[1].replace(/\\"/g, '"') : null;
+}
+
+/** 输入框 → 源码，双向同步 */
+function writeCodeText(text) {
+  const cur = codeArea.value;
+  const re = /(#define\s+DISPLAY_TEXT\s+")[^"]*(")/;
+  if (!re.test(cur)) return;
+  codeArea.value = cur.replace(re, (all, a, b) => a + text.replace(/"/g, '\\"') + b);
+  renderCode();
+}
+
+function applyCodeText() {
+  const t = parseCodeText(codeArea.value);
+  if (t === null) return;
+  if (t === pending.text) return;
+  pending.text = t;
+  textInput.value = t;
+  state.reveal = 1;
+  if (state.phase === 'run') {
+    const skipped = compileText(t);
+    if (skipped.length) log('err', '字库缺少字符 ' + skipped.map(c => "'" + c + "'").join(' '));
+    log('sys', '源码已更新 → ' + (t || '(空)'));
+    needDraw = true;
+  }
+  syncTextUI();
+  syncStateCard();
+}
+
+let codeTimer = 0;
+codeArea.addEventListener('input', () => {
+  renderCode();
+  clearTimeout(codeTimer);
+  codeTimer = setTimeout(applyCodeText, 220);
+});
+codeArea.addEventListener('scroll', syncCodeScroll);
+
+document.getElementById('codeReset').addEventListener('click', () => {
+  codeArea.value = CODE_DEFAULT;
+  renderCode();
+  const t = parseCodeText(CODE_DEFAULT);
+  if (t !== null) {
+    pending.text = t;
+    textInput.value = t;
+    state.reveal = 1;
+    if (state.phase === 'run') {
+      compileText(t);
+      needDraw = true;
+    }
+    syncTextUI();
+    syncStateCard();
+  }
+  log('sys', '源码已恢复默认 · DISPLAY_TEXT = "' + t + '"');
+});
+
+/* ============================================================
+   14. 启动
+   ============================================================ */
+function boot() {
+  textInput.value = pending.text;
+  speedEl.value = String(state.speed);
+  document.getElementById('speedVal').textContent = state.speed + ' 列/秒';
+  setBrightness(CONFIG.DEFAULT_BRIGHTNESS);
+  codeArea.value = CODE_DEFAULT;
+  renderCode();
+  syncTextUI();
+  syncAll();
+
+  log('sys', 'BOOT: 上电自检开始');
+  log('sys', '点阵 8×64 正常 · 字库 5×7 加载完成 · 星闪模组待机');
+  log('sys', '等待烧录，输入 help 查看命令');
+
+  window.addEventListener('resize', () => { needDraw = true; });
+  requestAnimationFrame(tick);
+}
+boot();
+</script>
+</body>
+</html>
